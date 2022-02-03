@@ -1,0 +1,10 @@
+{
+  "name": "devicesample",
+  "description": "ricoh-ls-sdk device sample",
+  "scripts": {
+    "start": "http-server -a localhost -o device.html -p 3000 -s"
+  },
+  "dependencies": {
+    "http-server": "^13.0.1"
+  }
+}

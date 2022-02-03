@@ -1,0 +1,10 @@
+{
+  "name": "selectivesample",
+  "description": "ricoh-ls-sdk selective sample",
+  "scripts": {
+    "start": "http-server -a localhost -o selective.html -p 3000 -s"
+  },
+  "dependencies": {
+    "http-server": "^13.0.1"
+  }
+}

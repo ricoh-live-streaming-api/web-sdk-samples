@@ -1,0 +1,10 @@
+{
+  "name": "metasample",
+  "description": "ricoh-ls-sdk meta sample",
+  "scripts": {
+    "start": "http-server -a localhost -o meta.html -p 3000 -s"
+  },
+  "dependencies": {
+    "http-server": "^13.0.1"
+  }
+}

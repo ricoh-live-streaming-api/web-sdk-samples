@@ -1,0 +1,10 @@
+{
+  "name": "mutesample",
+  "description": "ricoh-ls-sdk mute sample",
+  "scripts": {
+    "start": "http-server -a localhost -o mute.html -p 3000 -s"
+  },
+  "dependencies": {
+    "http-server": "^13.0.1"
+  }
+}

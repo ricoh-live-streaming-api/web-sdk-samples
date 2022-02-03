@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Example (Meta)</title>
+
+<link rel="shortcut" icon href="https://www.w3.org/favicon.ico" />
+
+<style>
+  video {
+    width: 200px;
+    border: solid 1px #ccc;
+  }
+  button {
+    height: 3em;
+    margin: 5px;
+  }
+</style>
+
+<div>
+  <button id="start">start</button>
+  <button id="stop" disabled>stop</button>
+</div>
+<div>
+  <button id="changemeta" disabled>Change Connection Meta</button>
+  <button id="changeaudiometa" disabled>Change Audio Meta</button>
+  <button id="changevideometa" disabled>Change Video Meta</button>
+</div>
+
+<div>
+  <button id="dllog">get log</button>
+</div>
+
+<div id="error"></div>
+
+<h2>Local Stream</h2>
+
+<video id="localStream" autoplay controls muted></video>
+
+<h2>Remote Stream</h2>
+<ul id="remote-streams"></ul>
+
+<div>connection meta: <span id="connection_meta"></span></div>
+<div>track meta(audio): <span id="audio_meta"></span></div>
+<div>track meta(video): <span id="video_meta"></span></div>
+
+<script src="https://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js"></script>
+<script type="module" src="meta.js"></script>

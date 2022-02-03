@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Example (Selective)</title>
+
+<link rel="shortcut" icon href="https://www.w3.org/favicon.ico" />
+
+<style>
+  video {
+    width: 200px;
+    border: solid 1px #ccc;
+  }
+  button {
+    height: 3em;
+    margin: 5px;
+  }
+</style>
+
+<div>
+  <button id="start">start</button>
+  <button id="stop" disabled>stop</button>
+</div>
+
+<div>
+  <button id="togglereq" disabled>toggle video requirement for 1st peer</button>
+</div>
+
+<div>
+  <button id="dllog">get log</button>
+</div>
+
+<div id="error"></div>
+
+<h2>Local Stream</h2>
+
+<video id="localStream" autoplay controls muted></video>
+
+<h2>Remote Stream</h2>
+<ul id="remote-streams"></ul>
+
+<script src="https://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js"></script>
+<script type="module" src="selective.js"></script>
