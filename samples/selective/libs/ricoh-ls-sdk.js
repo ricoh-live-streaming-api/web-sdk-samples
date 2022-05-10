@@ -87,7 +87,7 @@ const SIGNALING_URL = "wss://signaling.livestreaming.mw.smart-integration.ricoh.
  * Client の Role
  *
  * @public
- * @typedef {"sendrecv" | "sendonly"} Role
+ * @typedef {"sendrecv" | "sendonly" | "recvonly" | "void"} Role
  */
 
 /**
@@ -278,6 +278,9 @@ class Peer extends RTCPeerConnection {
     /** @type {ConnectionID} */
     this.connection_id = connection_id;
 
+    this.startTime = new Date().getTime();
+    this.iceConnectState = "initial";
+
     this.on("signalingstatechange", () => {
       this.signalingStateTailHistory = this.logger.putLog(this.signalingStateHeadHistory, this.signalingStateTailHistory, `${this.signalingState} <- ${this.signalingStateLatest}`);
       this.signalingStateLatest = this.signalingState;
@@ -285,6 +288,7 @@ class Peer extends RTCPeerConnection {
     this.on("iceconnectionstatechange", () => {
       this.iceConnectionStateTailHistory = this.logger.putLog(this.iceConnectionStateHeadHistory, this.iceConnectionStateTailHistory, `${this.iceConnectionState} <- ${this.iceConnectionStateLatest}`);
       this.iceConnectionStateLatest = this.iceConnectionState;
+      if (this.iceConnectionState === "connected") this.iceConnectState = "connected";
     });
     this.on("icegatheringstatechange", () => {
       this.iceGatheringStateTailHistory = this.logger.putLog(this.iceGatheringStateHeadHistory, this.iceGatheringStateTailHistory, `${this.iceGatheringState} <- ${this.iceGatheringStateLatest}`);
@@ -537,6 +541,14 @@ class Peer extends RTCPeerConnection {
 
     this.getIceInfo(stats);
 
+    if (this.iceConnectState === "initial") {
+      const now = new Date().getTime();
+      if (30 * 1000 < now - this.startTime) {
+        this.emit("changestability", { connection_id: this.connection_id, stability: "iceconnecttimeout" });
+        this.iceConnectState = "timeout";
+      }
+    }
+
     if (this.connectionState === "connected" && this.stability === "unstable") {
       this.stability = "stable";
       this.emit("changestability", { connection_id: this.connection_id, stability: "icestable" });
@@ -571,6 +583,8 @@ class WS extends WebSocket {
     this.sendTailHistory = [];
     this.recvHeadHistory = [];
     this.recvTailHistory = [];
+
+    this.lastReceived = new Date().getTime();
   }
 
   /**
@@ -581,6 +595,8 @@ class WS extends WebSocket {
    */
   onMessage(e) {
     this.recvTailHistory = this.logger.putLog(this.recvHeadHistory, this.recvTailHistory, e.data);
+
+    this.lastReceived = new Date().getTime();
 
     /** @type {Object} */
     const message = JSON.parse(e.data);
@@ -1011,9 +1027,9 @@ class Client extends ET {
 
     /**
      * @private
-     * @type {boolean}
+     * @type {Role}
      */
-    this.sendonly = false;
+    this.sendrecv = "sendrecv";
 
     /**
      * @private
@@ -1156,10 +1172,14 @@ class Client extends ET {
    * @param {any} detail
    */
   internalError(code, detail) {
+    /** @type {Boolean} */
+    const ignoreError = this.state === "closing" || this.state === "closed";
     this.disconnect();
-    /** @type {String} */
-    const err = "InternalError" + code.toString();
-    this.emitError(code, err, detail);
+    if (!ignoreError) {
+      /** @type {String} */
+      const err = "InternalError" + code.toString();
+      this.emitError(code, err, detail);
+    }
   }
 
   /**
@@ -1296,21 +1316,26 @@ class Client extends ET {
    */
   connect(client_id, access_token, option) {
     if (this.state !== "idle") throw new SDKError(new ErrorData(45000, "BadStateOnConnect"));
-    if (!option.localLSTracks) throw new SDKError(new ErrorData(45004, "NeedLocalTracksOnConnect"));
+
+    try {
+      if (option.sending) this.sendingOption = option.sending;
+      if (option.receiving) this.receivingOption = option.receiving;
+      this.sendrecv = this.getSendRecvFromOption(option);
+    } catch (e) {
+      this.internalError(61049, e);
+      return;
+    }
+    if (this.sendrecv === "sendrecv" || this.sendrecv === "sendonly") {
+      if (!option.localLSTracks) throw new SDKError(new ErrorData(45004, "NeedLocalTracksOnConnect"));
+    } else {
+      if (option.localLSTracks) throw new SDKError(new ErrorData(45014, "InvalidLocalTracksOnConnect"));
+    }
 
     try {
       this.timerId = window.setInterval(this.monitor.bind(this), 2500);
 
       this.client_id = client_id;
       this.access_token = access_token;
-
-      if (option.sending) this.sendingOption = option.sending;
-      if (option.receiving) {
-        this.receivingOption = option.receiving;
-        if (this.receivingOption.hasOwnProperty("enabled") && this.receivingOption.enabled === false) {
-          this.sendonly = true;
-        }
-      }
 
       this.peers = new Map();
 
@@ -1356,10 +1381,12 @@ class Client extends ET {
       this.internalError(61004, e);
       return;
     }
-    option.localLSTracks.forEach((loclsTrack) => {
-      this.localLSTracks.push(new LocalLSTrack(loclsTrack));
-      this.emit("addlocaltrack", { mediaStreamTrack: loclsTrack.mediaStreamTrack, stream: loclsTrack.stream });
-    });
+    if (this.sendrecv === "sendrecv" || this.sendrecv === "sendonly") {
+      option.localLSTracks.forEach((loclsTrack) => {
+        this.localLSTracks.push(new LocalLSTrack(loclsTrack));
+        this.emit("addlocaltrack", { mediaStreamTrack: loclsTrack.mediaStreamTrack, stream: loclsTrack.stream });
+      });
+    }
   }
 
   /**
@@ -1498,7 +1525,7 @@ class Client extends ET {
     this.putLog("debug", "API Call: changeMediaRequirements");
     if (this.state !== "open") throw new SDKError(new ErrorData(45010, "BadStateOnChangeMediaRequirements"));
     if (!this.sfupc) throw new SDKError(new ErrorData(45011, "UnsupportedRoomSpecTypeOnChangeMediaRequirements"));
-    if (this.sendonly) throw new SDKError(new ErrorData(45013, "InvalidReceivingOptionOnChangeMediaRequirements"));
+    if (this.sendrecv === "sendonly") throw new SDKError(new ErrorData(45013, "InvalidReceivingOptionOnChangeMediaRequirements"));
     const rtm = this.sfupc.remote_track_metadata.find((t) => t.connection_id === connection_id && t.kind === "video");
     if (!rtm) throw new SDKError(new ErrorData(45012, "ConnectionNotFoundOnChangeMediaRequirements"));
 
@@ -1521,6 +1548,56 @@ class Client extends ET {
     } catch (e) {
       this.internalError(61047, e);
     }
+  }
+
+  /**
+   * videoの送信ビットレートを変更する
+   *
+   * @public
+   * @param {Number} maxBitrateKbps
+   */
+  changeVideoSendBitrate(maxBitrateKbps) {
+    this.putLog("debug", "API Call: changeVideoSendBitrate");
+    if (this.state !== "open") throw new SDKError(new ErrorData(45015, "BadStateOnChangeVideoSendBitrate"));
+    if (!this.sfupc) throw new SDKError(new ErrorData(45014, "UnsupportedRoomSpecTypeOnChangeVideoSendBitrate"));
+
+    try {
+      /** @type {Object} */
+      const message = {
+        message_type: "sfu.update_connect_options",
+        options: {
+          sending: {
+            video: {
+              max_bitrate_kbps: maxBitrateKbps,
+            },
+          },
+        },
+      };
+      this.ws.sendMessage(message);
+    } catch (e) {
+      this.internalError(61048, e);
+    }
+  }
+
+  /**
+   * @private
+   */
+  getSendRecvFromOption(option) {
+    if (!option) return "sendrecv";
+    /** @type {SendingOption} */
+    const sending = option.sending;
+    /** @type {ReceivingOption} */
+    const receiving = option.receiving;
+
+    /** @type {Boolean} */
+    const sendEnabled = !sending || !sending.hasOwnProperty("enabled") || sending.enabled !== false;
+    /** @type {Boolean} */
+    const recvEnabled = !receiving || !receiving.hasOwnProperty("enabled") || receiving.enabled !== false;
+
+    if (sendEnabled && recvEnabled) return "sendrecv";
+    if (sendEnabled && !recvEnabled) return "sendonly";
+    if (!sendEnabled && recvEnabled) return "recvonly";
+    return "void";
   }
 
   /**
@@ -1773,7 +1850,11 @@ class Client extends ET {
    */
   onChangeStability(e) {
     const connection_id = e.connection_id === "" ? "sfu" : e.connection_id;
-    this.emit("changestability", { connection_id, stability: e.stability });
+    if (e.stability === "iceconnecttimeout") {
+      this.emitError(54001, "IceConnectionTimeout", e);
+    } else {
+      this.emit("changestability", { connection_id, stability: e.stability });
+    }
   }
 
   /**
@@ -1783,6 +1864,7 @@ class Client extends ET {
     const options = {};
     if (send) {
       const sending = {};
+      if (send.hasOwnProperty("enabled")) sending.enabled = send.enabled;
       if (send.hasOwnProperty("video")) {
         const video = {};
         if (send.video.hasOwnProperty("codec")) video.codec = send.video.codec;
@@ -1817,10 +1899,11 @@ class Client extends ET {
         client_id: this.client_id,
         access_token: this.access_token,
         tags: this.metaToTags(this.connectionMetadata),
-        sdk_info: { platform: "web", version: "1.2.0+20211109" },
+        sdk_info: { platform: "web", version: "1.3.0+20220317" },
         options: this.makeConnectMessageOptions(this.sendingOption, this.receivingOption, this.userIceServersProtocol),
       };
       this.ws.sendMessage(connectMessage);
+      this.lastReceived = new Date().getTime();
     } catch (e) {
       this.internalError(61010, e);
     }
@@ -1902,11 +1985,15 @@ class Client extends ET {
     e.connections.forEach((connection) => {
       /** @type {{connection_id: Object, tags: Object[]}} */
       const { connection_id, tags } = connection;
+
+      /** @type {Role} */
+      const sendrecv = this.getSendRecvFromOption(connection.options);
+
       /** @type {Object} */
       const meta = this.tagsToMeta(tags);
       this.emit("addremoteconnection", { connection_id, meta });
 
-      this.connections.set(connection_id, { state: "joined", join: now });
+      this.connections.set(connection_id, { state: "joined", join: now, sendrecv });
     });
     this.setState("open", "open");
   }
@@ -1921,11 +2008,15 @@ class Client extends ET {
       const { connection } = e;
       /** @type {{connection_id: Object, tags: Object[]}} */
       const { connection_id, tags } = connection;
+
+      /** @type {Role} */
+      const sendrecv = this.getSendRecvFromOption(connection.options);
+
       /** @type {Object} */
       const meta = this.tagsToMeta(tags);
       obj = { connection_id, meta };
 
-      this.connections.set(connection_id, { state: "joined", join: new Date().getTime() });
+      this.connections.set(connection_id, { state: "joined", join: new Date().getTime(), sendrecv });
     } catch (e) {
       this.internalError(61014, e);
       return;
@@ -2009,7 +2100,7 @@ class Client extends ET {
       peer.on("track", this.onTrackP2P.bind(this, peer));
       peer.on("icecandidate", this.onIceCandidateP2P.bind(this, peer));
       peer.on("changestability", this.onChangeStability.bind(this));
-      if (this.localLSTracks) await peer.addTracks(this.localLSTracks);
+      if (this.localLSTracks && this.localLSTracks.length !== 0) await peer.addTracks(this.localLSTracks);
 
       this.localLSTracks.forEach(async (localLSTrack) => {
         await this.changeMuteState("unmute", localLSTrack.muteType, localLSTrack);
@@ -2045,7 +2136,7 @@ class Client extends ET {
       peer.on("track", this.onTrackP2P.bind(this, peer));
       peer.on("icecandidate", this.onIceCandidateP2P.bind(this, peer));
       peer.on("changestability", this.onChangeStability.bind(this));
-      if (this.localLSTracks) await peer.addTracks(this.localLSTracks);
+      if (this.localLSTracks && this.localLSTracks.length !== 0) await peer.addTracks(this.localLSTracks);
 
       this.localLSTracks.forEach(async (localLSTrack) => {
         await this.changeMuteState("unmute", localLSTrack.muteType, localLSTrack);
@@ -2150,12 +2241,14 @@ class Client extends ET {
       this.sfupc.on("icecandidate", this.onIceCandidateSFU.bind(this));
       this.sfupc.on("changestability", this.onChangeStability.bind(this));
 
-      /** @type {Object} */
-      const local_track_metadata = await this.getLocalTrackMeta(e.local_track_slots);
-      this.ws.sendMessage({
-        message_type: "sfu.pre_answer",
-        local_track_metadata,
-      });
+      if (this.sendrecv !== "recvonly") {
+        /** @type {Object} */
+        const local_track_metadata = await this.getLocalTrackMeta(e.local_track_slots);
+        this.ws.sendMessage({
+          message_type: "sfu.pre_answer",
+          local_track_metadata,
+        });
+      }
 
       this.localLSTracks.forEach(async (localLSTrack) => {
         await this.changeMuteState("unmute", localLSTrack.muteType, localLSTrack);
@@ -2302,10 +2395,18 @@ class Client extends ET {
    * @private
    */
   monitor() {
-    if (this.sendonly) return;
     /** @type {number} */
     const now = new Date().getTime();
+    /** @type {Boolean} */
+    const timeout = 90 * 1000 < now - this.ws.lastReceived;
+    if ((this.state === "open" || this.state === "connecting") && timeout) {
+      this.emitError(54002, "SignalingTimeout", {});
+      this.setState("closed", "close");
+      return;
+    }
+    if (this.sendrecv === "sendonly") return;
     this.connections.forEach((conn, connection_id) => {
+      if (conn.sendrecv === "recvonly") return;
       if (conn.state !== "joined") return;
       if (!conn.join) return;
       if (10 * 1000 < now - conn.join) {
@@ -2351,6 +2452,9 @@ class Client extends ET {
       //  [3227, {err: "options.receiving.enabled 形式違反"}],
       //  [3228, {err: "options.connecting 形式違反"}],
       [3229, { err: "InvalidConnectingTurnProtocols" }], // options.connecting.turn_protocols 形式違反
+      //  [3230, { err: ""}], // options.sending.video.mute_type 形式違反
+      //  [3231, { err: "" }], // options.sending.enabled 形式違反
+      [3232, { err: "InvalidSendingReceivingEnabled" }], // options.sending.enabled と options.receiving.enabled の両方を false に指定した
       //  [3399, {err: "その他の connect 形式違反"}],
       [3400, { err: "InvalidAccessTokenNotJWT" }], //JWT でない"}],
       [3401, { err: "InvalidAccessTokenBadAlg" }], //alg が HS256 でない"}],
@@ -2463,6 +2567,15 @@ class Client extends ET {
       //[616, { err: ""}], // tag の use_analysis 形式違反
       //[617, { err: ""}], // pre_answerメッセージが複数回クライアントから送信された
       //[699, { err: ""}], // 上記以外のエラー
+      //[700, { err: ""}], // track_id がない
+      //[701, { err: ""}], // track_id 形式違反
+      //[702, { err: ""}], // enabled の形式違反
+      //[703, { err: ""}], // track_id が LocalTrack に割り振られた track_id ではない
+      //[704, { err: ""}], // 送信専用クライアントが受信オプションを変更しようとした
+      //[705, { err: ""}], // update_options.sending 形式違反
+      //[706, { err: ""}], // update_options.sending.video 形式違反
+      //[707, { err: ""}], // update_options.sending.video.max_bitrate_kbps 形式違反
+      [708, { err: "InvalidMaxBitrateKBPSOnChangeVideoSendBitrate" }], // update_options.sending.video.max_bitrate_kbps が設定可能範囲を超えている
       //[800, { err: ""}], // peer_connection_idがない
       //[801, { err: ""}], // sdpがない
       //[802, { err: ""}], // sdp形式違反
@@ -2495,6 +2608,7 @@ class Client extends ET {
 
 export { LSTrack };
 export { Client };
+export { SDKError };
 
 export const testables = {
   ErrorData: ErrorData,
