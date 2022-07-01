@@ -52,21 +52,26 @@
           <div><input type="text" id="receivingEnabled" /></div>
           <div>boolean(true)</div>
         </div>
+        <div class="row">
+          <div>iceServersProtocol</div>
+          <div><input type="text" id="iceServersProtocol" /></div>
+          <div>"all" | "udp" | "tcp" | "tls"("all")</div>
+        </div>
       </div>
     </div>
 
-    <div id="error" style="display: none">
+    <div id="error" style="display: none;">
       <div>Error: <span id="errMsg"></span></div>
       <button id="dlLog">download log</button>
       <button id="dlStatsLog">download stats history</button>
       <div id="reportStr"></div>
     </div>
 
-    <div id="main" style="display: none">
+    <div id="main" style="display: none;">
       <button id="connect">connect</button>
       <button id="option">-></button>
 
-      <div id="options" style="display: none">
+      <div id="options" style="display: none;">
         <h3>Video</h3>
         <div class="select">
           <form id="vmute">
@@ -105,7 +110,7 @@
       </div>
 
       <h2>Local Stream</h2>
-      <video id="localStream" autoplay controls></video>
+      <video id="localStream" playsinline autoplay controls></video>
       <div id="localText"></div>
 
       <h2>Remote Stream</h2>

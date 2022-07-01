@@ -1,0 +1,10 @@
+{
+  "name": "bitratesample",
+  "description": "ricoh-ls-sdk bitrate sample",
+  "scripts": {
+    "start": "http-server -a localhost -o bitrate.html -p 3000 -s"
+  },
+  "dependencies": {
+    "http-server": "^13.0.1"
+  }
+}

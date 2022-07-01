@@ -21,7 +21,7 @@ class Base {
     });
     this.client.addEventListener("error", (e) => {
       console.error(e.detail);
-      $('#error').innerText = `Error: ${e.detail.error}`;
+      $("#error").innerText = `Error: ${e.detail.error}`;
     });
     this.client.addEventListener("addlocaltrack", (e) => {
       const { stream, mediaStreamTrack } = e.detail;
@@ -72,17 +72,19 @@ class Base {
     return accessToken;
   }
 
-  async start(lsTracks, meta = "") {
+  async start(lsTracks, meta = "", sending = {}, receiving = {}) {
     this.lsTracks = lsTracks;
     const access_token = this.accessToken(Credentials.CLIENT_SECRET, { type: "sfu" });
     try {
       const option = { localLSTracks: this.lsTracks };
-      if (meta!=="") option.meta = meta;
+      if (meta !== "") option.meta = meta;
+      if (Object.keys(sending).length !== 0) option.sending = sending;
+      if (Object.keys(receiving).length !== 0) option.receiving = receiving;
       if (Credentials.SIGNALING_URL) option.signalingURL = Credentials.SIGNALING_URL;
       this.client.connect(Credentials.CLIENT_ID, access_token, option);
     } catch (e) {
       console.error(e);
-      $('#error').innerText = `Error: ${e.detail.error}`;
+      $("#error").innerText = `Error: ${e.detail.error}`;
     }
     $("#start").disabled = true;
     $("#stop").disabled = false;

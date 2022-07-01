@@ -30,6 +30,7 @@ let videoCodec: VideoCodecType = "h264";
 let sendingPriority: SendingPriority = "normal";
 let maxBitrateKbps = 0;
 let receivingEnabled = true;
+let iceServersProtocol: "all" | "udp" | "tcp" | "tls" | undefined = undefined;
 
 function updateConnectionInfo(info: ConnectionInfo) {
   const displayText = (name?: string, audioMute?: MuteType, hand?: HandType, cameraName?: string, stability?: string): string => {
@@ -96,6 +97,7 @@ function createClient(): Client {
 
     const $video = document.createElement("video");
     $video.id = `${connection_id}_video`;
+    $video.setAttribute("playsinline", "");
     $video.ondblclick = () => {
       $video.requestFullscreen();
       fullScreenConnection = connection_id;
@@ -174,7 +176,7 @@ function createClient(): Client {
 }
 
 function makeConnectOption(meta: Object): ConnectOption {
-  const ret: ConnectOption = { localLSTracks: lsTracks, meta };
+  const ret: ConnectOption = { localLSTracks: lsTracks, meta, iceServersProtocol };
   if (!receivingEnabled) {
     ret.receiving = {};
     ret.receiving.enabled = false;
@@ -215,7 +217,7 @@ async function connect(): Promise<boolean> {
     const meta = { name, hand };
     const connectOption = makeConnectOption(meta);
     client.connect(Credential.CLIENT_ID, access_token, connectOption);
-  } catch (e: unknown) {
+  } catch (e) {
     if (e instanceof SDKError) {
       onSDKError(e.detail, e.toReportString());
     } else {
@@ -295,7 +297,7 @@ async function changePreview(deviceId: string, mute: string) {
     };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     ($("#localStream") as HTMLVideoElement).srcObject = stream;
-  } catch (e: unknown) {
+  } catch (e) {
     console.error(e);
   }
 }
@@ -381,6 +383,15 @@ $("#start")?.addEventListener("click", async (e) => {
   if (txt !== "") {
     if (txt === "true") receivingEnabled = true;
     else if (txt === "false") receivingEnabled = false;
+    else return;
+  }
+
+  txt = ($("#iceServersProtocol") as HTMLInputElement).value;
+  if (txt !== "") {
+    if (txt === "all") iceServersProtocol = txt;
+    else if (txt === "udp") iceServersProtocol = txt;
+    else if (txt === "tcp") iceServersProtocol = txt;
+    else if (txt === "tls") iceServersProtocol = txt;
     else return;
   }
 

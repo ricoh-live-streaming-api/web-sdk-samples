@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Example (Bitrate)</title>
+
+<link rel="shortcut" icon href="https://www.w3.org/favicon.ico" />
+
+<style>
+  video {
+    width: 200px;
+    border: solid 1px #ccc;
+  }
+  button {
+    height: 3em;
+    margin: 5px;
+  }
+</style>
+
+<div>
+  <button id="start">start</button>
+  <button id="stop" disabled>stop</button>
+  <div></div>
+  <div><button id="bitrate_half">change bitrate to half</button> 相手側で画質が落ちる</div>
+  <div><button id="bitrate_initial">change bitrate to initial</button> 相手側で画質が初期に戻る</div>
+  <div><button id="bitrate_over">change bitrate to over </button> 設定不能でエラーになる</div>
+  Bitrate: <span id="bitrateState"></span> kbps
+</div>
+
+<div>
+  <button id="dllog">get log</button>
+</div>
+
+<div id="error"></div>
+
+<h2>Local Stream</h2>
+
+<video id="localStream" autoplay controls muted></video>
+
+<h2>Remote Stream</h2>
+<ul id="remote-streams"></ul>
+
+<div>status: <span id="status"></span></div>
+
+<script src="https://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js"></script>
+<script type="module" src="bitrate.js"></script>
