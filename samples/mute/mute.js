@@ -21,7 +21,7 @@ const UNMUTE = "unmute";
 let muteStateAudio = UNMUTE;
 let muteStateVideo = UNMUTE;
 
-$("#start").addEventListener("click", async (e) => {
+$("#start")?.addEventListener("click", async (e) => {
   if (!client) initClient();
 
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -31,23 +31,23 @@ $("#start").addEventListener("click", async (e) => {
   await base.start(lsTracks);
 });
 
-$("#stop").addEventListener("click", async (e) => {
+$("#stop")?.addEventListener("click", async (e) => {
   base.stop();
   client = null;
 });
 
-$("#dllog").addEventListener("click", (e) => {
+$("#dllog")?.addEventListener("click", (e) => {
   base.dllog();
 });
 
-$("#audio_mute").addEventListener("click", async (e) => {
+$("#audio_mute")?.addEventListener("click", async (e) => {
   muteStateAudio = muteStateAudio === UNMUTE ? MUTE : UNMUTE;
   $("#muteStateAudio").innerText = muteStateAudio;
 
   mute("audio");
 });
 
-$("#video_mute").addEventListener("click", async (e) => {
+$("#video_mute")?.addEventListener("click", async (e) => {
   muteStateVideo = muteStateVideo === UNMUTE ? MUTE : UNMUTE;
   $("#muteStateVideo").innerText = muteStateVideo;
 
@@ -55,12 +55,12 @@ $("#video_mute").addEventListener("click", async (e) => {
 });
 
 function mute(kind) {
-  const state = client.getState();
+  const state = client?.getState();
   if (state !== "open") return;
 
   lsTracks.forEach((lsTrack) => {
     const muteState = kind === "audio" ? muteStateAudio : muteStateVideo;
-    if (lsTrack.mediaStreamTrack.kind === kind) client.changeMute(lsTrack, muteState);
+    if (lsTrack.mediaStreamTrack.kind === kind) client?.changeMute(lsTrack, muteState);
   });
 }
 
@@ -98,3 +98,16 @@ function initClient() {
     $(`#${connection_id}info`).innerText = mute;
   });
 }
+
+// for test
+function hookClient(c) {
+  client = c;
+}
+function hookLSTracks(lstracks) {
+  lsTracks = lstracks;
+}
+module.exports = {
+  mute,
+  hookClient,
+  hookLSTracks,
+};

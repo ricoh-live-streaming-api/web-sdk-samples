@@ -61,14 +61,23 @@ function updateConnectionInfo(info: ConnectionInfo) {
 
 let fullScreenConnection = "";
 
-function onSDKError(e: ErrorDetail, errstr: string) {
-  ($("#errMsg") as HTMLSpanElement).innerText = e.error;
-  ($("#reportStr") as HTMLDivElement).innerText = errstr;
-
+function showError() {
   ($("#error") as HTMLDivElement).style.display = "block";
   ($("#remoteStreams") as HTMLElement).innerHTML = "";
   ($("#localStream") as HTMLVideoElement).srcObject = null;
   ($("#main") as HTMLDivElement).style.display = "none";
+}
+
+function onNonSDKError(e: any) {
+  if (!(e instanceof Error)) return;
+  ($("#errMsg") as HTMLSpanElement).innerText = e.message;
+  showError();
+}
+
+function onSDKError(e: ErrorDetail, errstr: string) {
+  ($("#errMsg") as HTMLSpanElement).innerText = e.error;
+  ($("#reportStr") as HTMLDivElement).innerText = errstr;
+  showError();
 }
 
 function createClient(): Client {
@@ -128,7 +137,16 @@ function createClient(): Client {
 
   client.on("removeremoteconnection", ({ connection_id, meta, mediaStreamTrack }) => {
     let $container = $(`#${connection_id}`) as HTMLDivElement;
-    if ($container) return;
+    if ($container === null) return;
+
+    const video = ($container as HTMLElement).firstChild as HTMLVideoElement;
+    if(video) {
+        (video.srcObject as MediaStream).getTracks().forEach((track) => {
+        track.stop();
+      });
+      video.srcObject = null;
+    }
+
     ($("#remoteStreams") as HTMLElement).removeChild($container);
 
     connections = connections.filter((connection) => connection.connection_id !== connection_id);
@@ -187,7 +205,7 @@ function makeConnectOption(meta: Object): ConnectOption {
   if (sendingPriority !== "normal") svo.priority = sendingPriority;
   if (videoCodec !== "h264") svo.codec = videoCodec;
 
-  if (svo !== {}) {
+  if (Object.keys(svo).length === 0) {
     ret.sending = {};
     ret.sending.video = svo;
   }
@@ -221,7 +239,7 @@ async function connect(): Promise<boolean> {
     if (e instanceof SDKError) {
       onSDKError(e.detail, e.toReportString());
     } else {
-      console.error(e);
+      onNonSDKError(e);
     }
   }
   return true;
@@ -269,7 +287,6 @@ let initialAudioMute = "softmute";
 let initialVideoMute = "softmute";
 let initialAudioDevice = "default";
 let initialVideoDevice = "default";
-let initialHand = "none";
 
 function changeMute(kind: string, mute: string) {
   const lsTrack = lsTracks.filter((lsTrack) => lsTrack.mediaStreamTrack.kind === kind)[0];
@@ -293,7 +310,7 @@ async function changePreview(deviceId: string, mute: string) {
   try {
     const constraints = {
       video: { deviceId: { exact: deviceId }, width: 640, height: 480 },
-      audio: false,
+      audio: true,
     };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     ($("#localStream") as HTMLVideoElement).srcObject = stream;
@@ -319,15 +336,14 @@ $("#vmute")?.addEventListener("change", async (e) => {
 });
 
 $("#meta")?.addEventListener("change", async (e) => {
+  if (!isConnected()) return;
   const hand = ($("input:checked[name=meta]") as HTMLSelectElement)?.value;
-  if (isConnected()) updateMeta(hand as HandType);
-  else initialHand = hand;
+  updateMeta(hand as HandType);
 });
 
 $("#audioSource")?.addEventListener("change", async (e) => {
   const deviceId = ($("#audioSource") as HTMLSelectElement)?.value;
-  if (isConnected()) {
-  } else initialAudioDevice = deviceId;
+  if (!isConnected()) initialAudioDevice = deviceId;
 });
 
 $("#videoSource")?.addEventListener("change", async (e) => {
@@ -439,8 +455,8 @@ async function initDevice() {
   const $videoSource = $("#videoSource") as HTMLSelectElement;
   while ($videoSource.options.length) $videoSource.remove(0);
   const constraints = {
-    video: { width: 640, height: 480 },
-    audio: false,
+    video: true,
+    audio: true,
   };
   await navigator.mediaDevices.getUserMedia(constraints);
   const deviceInfos = await navigator.mediaDevices.enumerateDevices();

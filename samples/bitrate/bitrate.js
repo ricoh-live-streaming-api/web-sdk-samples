@@ -17,7 +17,7 @@ let lsTracks = [];
 const INITIAL_BITRATE = 500;
 let bitrateCurrent = INITIAL_BITRATE;
 
-$("#start").addEventListener("click", async (e) => {
+$("#start")?.addEventListener("click", async (e) => {
   if (!client) initClient();
 
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -30,31 +30,31 @@ $("#start").addEventListener("click", async (e) => {
   });
 });
 
-$("#stop").addEventListener("click", async (e) => {
+$("#stop")?.addEventListener("click", async (e) => {
   base.stop();
   client = null;
   $("#error").innerText = "";
 });
 
-$("#dllog").addEventListener("click", (e) => {
+$("#dllog")?.addEventListener("click", (e) => {
   base.dllog();
 });
 
-$("#bitrate_half").addEventListener("click", async (e) => {
+$("#bitrate_half")?.addEventListener("click", async (e) => {
   bitrateCurrent = Math.round(bitrateCurrent / 2);
   changeBitrate(bitrateCurrent);
   $("#bitrateState").innerText = bitrateCurrent;
 });
 
-$("#bitrate_initial").addEventListener("click", async (e) => {
+$("#bitrate_initial")?.addEventListener("click", async (e) => {
   bitrateCurrent = INITIAL_BITRATE;
   changeBitrate(bitrateCurrent);
   $("#bitrateState").innerText = bitrateCurrent;
 });
 
 // エラーになる例
-$("#bitrate_over").addEventListener("click", async (e) => {
-   // このようにconnectOptionの値より大きい値を指定するとエラーになります
+$("#bitrate_over")?.addEventListener("click", async (e) => {
+  // このようにconnectOptionの値より大きい値を指定するとエラーになります
   changeBitrate(INITIAL_BITRATE + 1);
   $("#bitrateState").innerText = "";
 
@@ -64,9 +64,8 @@ $("#bitrate_over").addEventListener("click", async (e) => {
 });
 
 function changeBitrate(bitrate) {
-  const state = client.getState();
+  const state = client?.getState();
   if (state !== "open") return;
-
   client.changeVideoSendBitrate(bitrate);
 }
 
@@ -97,3 +96,12 @@ function initClient() {
     $("#bitrate_over").disabled = true;
   });
 }
+
+// for test
+function hookClient(c) {
+  client = c;
+}
+module.exports = {
+  changeBitrate,
+  hookClient,
+};

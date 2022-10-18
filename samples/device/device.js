@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", async (e) => {
     option.value = value;
     option.text = text;
     dom.appendChild(option);
-  }
+  };
   const $audioSource = $("#audioSource");
   const $videoSource = $("#videoSource");
   await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -38,8 +38,8 @@ document.addEventListener("DOMContentLoaded", async (e) => {
   }
 });
 
-$("#start").addEventListener("click", async (e) => {
-  if(!client) initClient();
+$("#start")?.addEventListener("click", async (e) => {
+  if (!client) initClient();
 
   const $audioSource = $("#audioSource");
   const $videoSource = $("#videoSource");
@@ -56,16 +56,16 @@ $("#start").addEventListener("click", async (e) => {
   await base.start(lsTracks);
 });
 
-$("#stop").addEventListener("click", async (e) => {
+$("#stop")?.addEventListener("click", async (e) => {
   base.stop();
   client = null;
 });
 
-$("#dllog").addEventListener("click", (e) => {
+$("#dllog")?.addEventListener("click", (e) => {
   base.dllog();
 });
 
-$("#chgtrack").addEventListener("click", async (e) => {
+$("#chgtrack")?.addEventListener("click", async (e) => {
   const audioSource = $("#audioSource").value;
   const videoSource = $("#videoSource").value;
   const constraints = {
@@ -77,13 +77,19 @@ $("#chgtrack").addEventListener("click", async (e) => {
   const video = stream.getVideoTracks()[0];
 
   lsTracks.forEach(async (lsTrack) => {
-    lsTrack.mediaStreamTrack.stop();
-    if (lsTrack.mediaStreamTrack.kind === "audio") await client.replaceMediaStreamTrack(lsTrack, audio);
-    else if (lsTrack.mediaStreamTrack.kind === "video") await client.replaceMediaStreamTrack(lsTrack, video);
-    else return;
+    const replaced = await replaceTrack(lsTrack, audio, video);
+    if (!replaced) return;
     $("#localStream").srcObject = stream;
   });
 });
+
+async function replaceTrack(lsTrack, audio, video) {
+  lsTrack.mediaStreamTrack.stop();
+  if (lsTrack.mediaStreamTrack.kind === "audio") await client.replaceMediaStreamTrack(lsTrack, audio);
+  else if (lsTrack.mediaStreamTrack.kind === "video") await client.replaceMediaStreamTrack(lsTrack, video);
+  else return false;
+  return true;
+}
 
 function initClient() {
   base = new Base();
@@ -97,4 +103,15 @@ function initClient() {
   });
 }
 
-
+// for test
+function hookClient(c) {
+  client = c;
+}
+function hookLSTracks(lstracks) {
+  lsTracks = lstracks;
+}
+module.exports = {
+  replaceTrack,
+  hookClient,
+  hookLSTracks,
+};

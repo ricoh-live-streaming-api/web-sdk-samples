@@ -14,47 +14,47 @@ let base = null;
 let client = null;
 let lsTracks = [];
 
-let connectionMeta = 'green';
-let audioMeta = 'green';
-let videoMeta = 'green';
+let connectionMeta = "green";
+let audioMeta = "green";
+let videoMeta = "green";
 let connections = new Map();
 
-$("#start").addEventListener("click", async (e) => {
-  if(!client) initClient();
+$("#start")?.addEventListener("click", async (e) => {
+  if (!client) initClient();
 
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
   lsTracks = stream.getTracks().map((mediaStreamTrack) => {
     const meta = mediaStreamTrack.kind === "audio" ? audioMeta : videoMeta;
-    return new LSSDK.LSTrack(mediaStreamTrack, stream, {meta: {color: meta}});
+    return new LSSDK.LSTrack(mediaStreamTrack, stream, { meta: { color: meta } });
   });
-  await base.start(lsTracks, {color: connectionMeta});
+  await base.start(lsTracks, { color: connectionMeta });
 });
 
-$("#stop").addEventListener("click", async (e) => {
+$("#stop")?.addEventListener("click", async (e) => {
   base.stop();
   client = null;
 });
 
-$("#dllog").addEventListener("click", (e) => {
+$("#dllog")?.addEventListener("click", (e) => {
   base.dllog();
 });
 
-$("#changemeta").addEventListener("click", async (e) => {
+$("#changemeta")?.addEventListener("click", async (e) => {
   connectionMeta = connectionMeta === "green" ? "red" : "green";
   $("#connection_meta").innerText = connectionMeta;
   updateConnectionMeta();
 });
 
-$("#changeaudiometa").addEventListener("click", async (e) => {
+$("#changeaudiometa")?.addEventListener("click", async (e) => {
   audioMeta = audioMeta === "green" ? "red" : "green";
   $("#audio_meta").innerText = audioMeta;
-  updateTrackMeta('audio', audioMeta);
+  updateTrackMeta("audio", audioMeta);
 });
 
-$("#changevideometa").addEventListener("click", async (e) => {
+$("#changevideometa")?.addEventListener("click", async (e) => {
   videoMeta = videoMeta === "green" ? "red" : "green";
   $("#video_meta").innerText = videoMeta;
-  updateTrackMeta('video', videoMeta);
+  updateTrackMeta("video", videoMeta);
 });
 
 function initClient() {
@@ -78,16 +78,16 @@ function initClient() {
   });
 
   client.on("addremoteconnection", ({ connection_id, meta }) => {
-    connections.set(connection_id, {connection: meta.color, audio: 'green', video: 'green'});
+    connections.set(connection_id, { connection: meta.color, audio: "green", video: "green" });
   });
 
   client.on("removeremoteconnection", ({ connection_id }) => {
-    connections.delete('connection_id');
+    connections.delete("connection_id");
   });
 
   client.on("updateremoteconnection", ({ connection_id, meta }) => {
     const obj = connections.get(connection_id);
-    connections.set(connection_id, {connection: meta.color, video: obj.video, audio: obj.audio});
+    connections.set(connection_id, { connection: meta.color, video: obj.video, audio: obj.audio });
 
     const obj2 = connections.get(connection_id);
     const info = `connection:${obj2.connection} video:${obj2.video} audio:${obj2.audio}`;
@@ -97,9 +97,9 @@ function initClient() {
   client.on("updateremotetrack", ({ connection_id, mediaStreamTrack, stream, meta }) => {
     const obj = connections.get(connection_id);
     if (mediaStreamTrack.kind === "video") {
-      connections.set(connection_id, {connection: obj.connection, video: meta.color, audio: obj.audio});
+      connections.set(connection_id, { connection: obj.connection, video: meta.color, audio: obj.audio });
     } else {
-      connections.set(connection_id, {connection: obj.connection, video: obj.video, audio: meta.color});
+      connections.set(connection_id, { connection: obj.connection, video: obj.video, audio: meta.color });
     }
     const obj2 = connections.get(connection_id);
     const info = `connection:${obj2.connection} video:${obj2.video} audio:${obj2.audio}`;
@@ -108,17 +108,26 @@ function initClient() {
 }
 
 function updateConnectionMeta() {
-  const state = client.getState();
+  const state = client?.getState();
   if (state !== "open") return;
 
-  client.updateMeta({color: connectionMeta});
+  client?.updateMeta({ color: connectionMeta });
 }
 
 function updateTrackMeta(kind, meta) {
-  const state = client.getState();
+  const state = client?.getState();
   if (state !== "open") return;
 
-  const lsTrack = lsTracks.find(lsTrack => lsTrack.mediaStreamTrack.kind === kind);
-  client.updateTrackMeta(lsTrack, { color: meta });
-
+  const lsTrack = lsTracks.find((lsTrack) => lsTrack.mediaStreamTrack.kind === kind);
+  client?.updateTrackMeta(lsTrack, { color: meta });
 }
+
+// for test
+function hookClient(c) {
+  client = c;
+}
+module.exports = {
+  updateConnectionMeta,
+  updateTrackMeta,
+  hookClient,
+};

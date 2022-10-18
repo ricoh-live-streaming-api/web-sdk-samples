@@ -17,8 +17,8 @@ let lsTracks = [];
 let firstPeerID = "";
 let firstPeerReq = "required";
 
-$("#start").addEventListener("click", async (e) => {
-  if(!client) initClient();
+$("#start")?.addEventListener("click", async (e) => {
+  if (!client) initClient();
 
   const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
   lsTracks = stream.getTracks().map((mediaStreamTrack) => {
@@ -27,21 +27,25 @@ $("#start").addEventListener("click", async (e) => {
   await base.start(lsTracks);
 });
 
-$("#stop").addEventListener("click", async (e) => {
+$("#stop")?.addEventListener("click", async (e) => {
   base.stop();
   client = null;
 });
 
-$("#dllog").addEventListener("click", (e) => {
+$("#dllog")?.addEventListener("click", (e) => {
   base.dllog();
 });
 
-$("#togglereq").addEventListener("click", async (e) => {
+$("#togglereq")?.addEventListener("click", async (e) => {
   if (firstPeerID === "") return;
   firstPeerReq = firstPeerReq === "required" ? "unrequired" : "required";
-  client.changeMediaRequirements(firstPeerID, firstPeerReq);
-  console.log(`set new requirement ${firstPeerReq}`);
+  changeRequirements(firstPeerID, firstPeerReq);
 });
+
+function changeRequirements(firstPeerID, firstPeerReq) {
+  client?.changeMediaRequirements(firstPeerID, firstPeerReq);
+  console.log(`set new requirement ${firstPeerReq}`);
+}
 
 function initClient() {
   base = new Base();
@@ -64,3 +68,11 @@ function initClient() {
   });
 }
 
+// for test
+function hookClient(c) {
+  client = c;
+}
+module.exports = {
+  changeRequirements,
+  hookClient,
+};

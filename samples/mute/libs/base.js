@@ -4,6 +4,7 @@
 
 import * as LSSDK from "./ricoh-ls-sdk.js";
 import { Credentials } from "./credential.js";
+import { IDs } from "./ids.js";
 
 const $ = document.querySelector.bind(document);
 
@@ -46,7 +47,16 @@ class Base {
     });
     this.client.on("removeremoteconnection", ({ connection_id, meta, mediaStreamTrack }) => {
       let $container = $(`#${connection_id}container`);
-      if ($container !== null) $("#remote-streams").removeChild($container);
+      if ($container === null) return;
+
+      const video = $container.firstChild;
+      if(video) {
+        video.srcObject.getTracks().forEach((track) => {
+          track.stop();
+        });
+        video.srcObject = null;
+      }
+      $("#remote-streams").removeChild($container);
     });
   }
 
@@ -64,7 +74,7 @@ class Base {
     const payload = {
       nbf: KJUR.jws.IntDate.get((now - 60 * 30).toString()),
       exp: KJUR.jws.IntDate.get((now + 60 * 30).toString()),
-      connection_id: btoa(Math.random()).replace(/=/g, ""),
+      connection_id: IDs.APP_ID + btoa(Math.random()).replace(/=/g, ""),
       room_id: "room1",
       room_spec: room_spec,
     };
@@ -74,7 +84,14 @@ class Base {
 
   async start(lsTracks, meta = "", sending = {}, receiving = {}) {
     this.lsTracks = lsTracks;
-    const access_token = this.accessToken(Credentials.CLIENT_SECRET, { type: "sfu" });
+
+    const room_spec = {
+      type: "sfu",
+      media_control: {
+        bitrate_reservation_mbps: 25
+      }
+    };
+    const access_token = this.accessToken(Credentials.CLIENT_SECRET, room_spec);
     try {
       const option = { localLSTracks: this.lsTracks };
       if (meta !== "") option.meta = meta;
