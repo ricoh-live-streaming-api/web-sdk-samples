@@ -6,7 +6,7 @@ RICOH Live Streaming Client SDK for Web を使用した Web サンプルアプ�
 詳細は下記Webサイトをご確認ください。
 
 * サービスサイト: https://livestreaming.ricoh/
-  * ソフトウェア開発者向けサイト: https://api.livestreaming.ricoh/
+* トライアル登録: https://console.livestreaming.mw.smart-integration.ricoh.com/login/register
 * ソフトウェア使用許諾契約書 : [Software License Agreement](../SoftwareLicenseAgreement.txt)
 
 * NOTICE: This package includes SDK and sample application(s) for "RICOH Live Streaming Service".
